@@ -1,0 +1,12 @@
+[project]
+name = "projeto-usando-adk-da-google"
+version = "0.1.0"
+description = "aqui vamos aprender a criar um assistente de viagens multiagentes usando o ADK do Google e o protocolo A2A"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+]
