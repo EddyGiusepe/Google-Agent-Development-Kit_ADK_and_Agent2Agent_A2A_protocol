@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "aqui vamos aprender a criar um assistente de viagens multiagentes usando o ADK do Google e o protocolo A2A"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "ipykernel>=6.29.5",
+    "mistralai>=1.9.2",
+    "python-dotenv>=1.1.1",
+]
 
 [dependency-groups]
 dev = [
