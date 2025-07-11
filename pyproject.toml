@@ -5,9 +5,17 @@ description = "aqui vamos aprender a criar um assistente de viagens multiagentes
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi>=0.116.0",
+    "google-adk>=1.6.1",
+    "httpx>=0.28.1",
     "ipykernel>=6.29.5",
+    "litellm>=1.74.1",
     "mistralai>=1.9.2",
+    "openai>=1.95.0",
+    "pydantic>=2.11.7",
     "python-dotenv>=1.1.1",
+    "streamlit>=1.46.1",
+    "uvicorn>=0.35.0",
 ]
 
 [dependency-groups]
