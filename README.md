@@ -204,14 +204,60 @@ Cada agente usa ``google.adk.agents.Agent``, um wrapper ``LiteLlm`` de modelo, e
 
 #### <font color="cyan">Criando um arquivo agent.py</font>
 
+Vamos agora definir a lógica do nosso ``activities_agent``, que será responsável por gerar experiências locais envolventes com base no itinerário de viagem do usuário. 
 
 ##### <font color="gree">``Etapa 1:`` Importações</font>
 
+Começamos importando módulos essenciais para configurar e executar nosso agente.
+
+```python
+from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+import json
+```
+
+Este agente usa componentes do ``Google ADK``, como ``Agent``, ``Runner`` e ``LiteLlm``, lida com o gerenciamento de estado usando ``InMemorySessionService``. A biblioteca ``Types`` é usada para construir prompts estruturados.
+
 
 ##### <font color="gree">``Etapa 2:`` Agente de atividades</font>
+Agora, instanciamos o próprio agente usando a classe Agent do ADK.
+
+```python
+activities_agent = Agent(
+    name="activities_agent",
+    model=LiteLlm("openai/gpt-4o"),
+    description="Sugere atividades interessantes para o usuário em um destino.",
+    instruction=(
+        "Dado um destino, datas e orçamento, sugere 2-3 atividades envolventes de turismo ou culturais. "
+        "Para cada atividade, forneça um nome, uma descrição curta, estimativa de preço e duração em horas. "
+        "Responda, SEMPRE, em português brasileiro (pt-BR). Mantenha-o conciso e bem formatado."
+    )
+)
+```	
+
+O parâmetro de instrução define o ``prompt do sistema`` que orienta o comportamento do ``LLM``. Embora este exemplo use linguagem simples, você pode ajustar a instrução para retornar `JSON` estruturado para facilitar a análise.
 
 
 ##### <font color="gree">``Etapa 3:`` Gerenciamento de sessão</font>
+Em seguida, para monitorar as interações do usuário, configuramos um Runner junto com as informações da sessão.
+
+```python
+session_service = InMemorySessionService()
+runner = Runner(
+    agent=activities_agent,
+    app_name="activities_app",
+    session_service=session_service
+)
+USER_ID = "user_activities"
+SESSION_ID = "session_activities"
+```
+
+
+	
+
 
 
 ##### <font color="gree">``Etapa 4:`` Executando a lógica do agente</font>
