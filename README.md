@@ -100,26 +100,142 @@ Antes de construirmos agentes inteligentes, precisamos definir uma linguagem com
 Eles são colocados em pastas `shared/` e `common/` para manter o código modular. Vamos analisar cada um deles.
 
 
+#### <font color="cyan">Criando um arquivo shared/schemas.py</font>
+
+Definimos um esquema `TravelRequest` usando o `Pydantic`. Isso garante que todos os agentes concordem com a estrutura das solicitações recebidas, o que inclui o destino, as datas da viagem e o orçamento do usuário.
+
+```python
+from pydantic import BaseModel
+
+class TravelRequest(BaseModel):
+    destination: str
+    start_date: str
+    end_date: str
+    budget: float
+```
+
+Esta `Class` ajuda em:
+
+* Manter a entrada consistente para todos os agentes.
+
+* Adicionando validação automática com `FastAPI`.
+
+* Simplificando a reutilização de código.
+
+
+#### <font color="cyan">Criando um arquivo common/a2a_client.py</font>
+
+Este utilitário assíncrono leve permite que qualquer agente (especialmente o `host`) invoque outro agente usando o protocolo `A2A` chamando a endpoint `/run` de extremidade.
+
+```python
+import httpx
+
+async def call_agent(url, payload):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, timeout=60.0)
+        response.raise_for_status()
+        return response.json()
+```
+
+Este utilitário envia de forma assíncrona uma solicitação ``POST`` para a endpoint /run de outro agente usando `httpx`. Ele retorna a resposta `JSON` analisada e gera um erro se a solicitação falhar.
+
+Usaremos esse utilitário em nosso agente host para chamar `flight_agent`, `stay_agent`, e `activities_agent`.
+
+
+#### <font color="cyan">Criando um arquivo common/a2a_server.py</font>
+
+Em vez de escrever uma rota `FastAPI` personalizada para cada agente, nós a generalizamos usando uma função `create_app(agent)`, que manipula:
+
+* Servindo o agente em `/run`
+
+* Recebendo uma solicitação de viagem
+
+* Retornando uma resposta estruturada
+
+```python
+from fastapi import FastAPI
+import uvicorn
+
+def create_app(agent):
+    app = FastAPI()
+    @app.post("/run")
+    async def run(payload: dict):
+        return await agent.execute(payload)
+    return app
+```
+
+Este utilitário cria um aplicativo `FastAPI` com uma `/run` rota padrão que delega a execução ao agente fornecido. Ele garante uma interface de agente para agente (`A2A`) consistente para todos os serviços usando entrada `JSON` estruturado.
+
+Juntos, esses componentes compartilhados tornam nosso sistema multiagente mais sustentável, reutilizável e alinhado à filosofia `A2A` do `Google` de mensagens interagentes simples e estruturadas.
+
+
+### <font color="blue">`Etapa 3:` Construindo o Sistema Multiagente com ADK e A2A</font>
+
+Agora que compartilhamos contratos e utilitários, vamos começar a construir os agentes individuais. Para transformar isso em um sistema ``verdadeiramente modular`` e ``multiagente``, usaremos o protocolo ``A2A do Google`` — uma interface simples baseada em HTTP que permite que os agentes se comuniquem de forma consistente e interoperável.
+
+O A2A (``Agent-to-Agent``) permite a coordenação ``plug-and-play`` entre agentes, sejam eles funções `Python` locais ou hospedados em redes. Cada agente expõe uma endpoint `/run` com um esquema comum e atua como um serviço.
+
+Em nossa demonstração, temos quatro agentes:
+
+* `host_agent`: Orquestra todos os outros agentes.
+
+* `flight_agent`: Encontra voos adequados.
+
+* `stay_agent`: Sugere acomodações.
+
+* `activities_agent`: Recomenda a participação em atividades locais.
+
+Todos os agentes são estruturados de forma semelhante, com 3 arquivos e uma subpasta:
+
+```
+agents/
+├── host_agent/
+│   │   ├── agent.py              # Opcional se a lógica do host for mínima
+│   │   ├── task_manager.py       # Chama outros agentes e agrega respostas
+│   │   ├── __main__.py           # Inicia o aplicativo FastAPI via common/a2a_server.py
+│   │   └── .well-known/
+│   │       └── agent.json        # Metadados do Card do agente A2A
+├── flight_agent/
+├── stay_agent/
+└── activities_agent/
+```
+
+Cada agente usa ``google.adk.agents.Agent``, um wrapper ``LiteLlm`` de modelo, e ``Runner`` para execução. Comece criando os seguintes arquivos dentro da  pasta ``activities_agent`` e repita o mesmo para ``flight_agent`` e ``stay_agent``.
+
+#### <font color="cyan">Criando um arquivo agent.py</font>
+
+
+##### <font color="gree">``Etapa 1:`` Importações</font>
+
+
+##### <font color="gree">``Etapa 2:`` Agente de atividades</font>
+
+
+##### <font color="gree">``Etapa 3:`` Gerenciamento de sessão</font>
+
+
+##### <font color="gree">``Etapa 4:`` Executando a lógica do agente</font>
 
 
 
 
 
+#### <font color="cyan">Criando um arquivo task_manager.py</font>
 
 
 
 
 
+#### <font color="cyan">Criando um arquivo __main__.py</font>
 
 
 
 
+#### <font color="cyan">Criando um arquivo .well-known/agent.json</font>
 
 
 
-
-
-
+### <font color="blue">``Etapa 4:`` Coordenação com o host_agent</font>
 
 
 
