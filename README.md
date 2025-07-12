@@ -461,10 +461,38 @@ Esta função usa a função `call_agent()` auxiliar para despachar o payload pa
 
 
 #### <font color="cyan">Criando um arquivo `__main__.py`</font>
+O arquivo `__main__.py` serve como ponto de entrada para o servidor `FastAPI` que encapsula o `agente do host`. 
 
+```python
+from common.a2a_server import create_app
+from .task_manager import run
+
+app = create_app(agent=type("Agent", (), {"execute": run}))
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, port=8000)
+```
+O arquivo `__main__.py` faz o seguinte:
+
+* Ele usa `create_app()` from `common/a2a_server.py` para gerar um aplicativo `FastAPI` com uma endpoint `/run` padronizada.
+
+* Em seguida, ele passa um objeto simples, semelhante a um agente, com um método `execute()` que delega internamente para a função `task_manager.run()`.
+
+* Por fim, ele inicia o servidor `FastAPI` usando `uvicorn` uma porta especificada (geralmente `8000`).
+
+Isso alinha a interface do `agente host` com outros `agentes downstream`, mantendo a consistência em todo o sistema.
 
 
 #### <font color="cyan">Criando um arquivo `.well-known/agent.json`</font>
+Este arquivo atua como um `padrão multiagente clássico`, onde um nó central delega e compõe tarefas. 
+
+```json
+{
+  "name": "host_agent",
+  "description": "Coordena a viagem de planejamento de viagem chamando agentes de voo, hospedagem e atividades."
+}
+```
+Embora opcional, é uma ótima prática incluir isso em todos os diretórios de agentes, conforme explicado anteriormente.
 
 
 
