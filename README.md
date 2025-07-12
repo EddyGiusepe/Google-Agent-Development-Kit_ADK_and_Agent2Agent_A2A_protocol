@@ -246,6 +246,7 @@ Em seguida, para monitorar as interações do usuário, configuramos um Runner j
 
 ```python
 session_service = InMemorySessionService()
+
 runner = Runner(
     agent=activities_agent,
     app_name="activities_app",
@@ -254,34 +255,223 @@ runner = Runner(
 USER_ID = "user_activities"
 SESSION_ID = "session_activities"
 ```
-
-
-	
-
+O `Runner` agente gerencia a execução de uma sessão específica do aplicativo (app). Enquanto a classe `InMemorySessionService` armazena o contexto na memória. Logo, definimos os IDs de usuário e de sessão. No entanto, em produção, eles podem ser dinâmicos ou específicos do usuário. Isso garante que uma nova sessão do `ADK` exista antes de enviar qualquer prompt ao agente `LLM`.
 
 
 ##### <font color="gree">``Etapa 4:`` Executando a lógica do agente</font>
+A função `execute()` manipula solicitações de entrada, cria um prompt, invoca o modelo e analisa a saída.
+
+```python
+async def execute(request):
+    session_service.create_session(
+        app_name="activities_app",
+        user_id=USER_ID,
+        session_id=SESSION_ID
+    )
+    prompt = (
+        f"Usuário está voando para {request['destination']} de {request['start_date']} até {request['end_date']}, "
+        f"com um orçamento de {request['budget']}. Sugere 2-3 atividades, cada uma com nome, descrição, estimativa de preço e duração. "
+        f"Responda em formato JSON usando a chave 'activities' com uma lista de objetos de atividade."
+    )
+    message = types.Content(role="user", parts=[types.Part(text=prompt)])
+    async for event in runner.run_async(user_id=USER_ID, session_id=SESSION_ID, new_message=message):
+        if event.is_final_response():
+            response_text = event.content.parts[0].text
+            try:
+                parsed = json.loads(response_text)
+                if "activities" in parsed and isinstance(parsed["activities"], list):
+                    return {"activities": parsed["activities"]}
+                else:
+                    print("A chave 'activities' está ausente ou não é uma lista no JSON da resposta")
+                    return {"activities": response_text}  # fallback to raw text
+            except json.JSONDecodeError as e:
+                print("JSON parsing failed:", e)
+                print("Conteúdo da resposta:", response_text)
+                return {"activities": response_text}  # fallback to raw text
+```
+A função `execute()` cria dinamicamente um `prompt` usando os parâmetros da solicitação recebida, como destino, datas e orçamento. Veja o que acontece nos bastidores:
+
+* O prompt instrui o modelo a retornar um objeto `JSON` estruturado contendo uma lista de atividades.
+
+* Um objeto `Content` é construído e passado para o `ADK Runner`, que aguarda de forma assíncrona a resposta final do modelo usando um gerador de streaming.
+
+* Depois que a resposta final é recebida, o agente extrai a saída de texto bruto e tenta analisá-la como `JSON`.
+
+* Se a análise for bem-sucedida e a chave de atividades esperada existir, os dados estruturados serão retornados.
+
+* Se a chave estiver ausente ou malformada, a alternativa é retornar a resposta em texto bruto para que a interface do usuário ainda tenha uma saída utilizável.
+
+* Essa abordagem de tratamento duplo garante uma degradação suave quando o LLM retorna texto simples em vez de `JSON` estruturado.
+
+Essa estratégia melhora a robustez e a experiência do usuário, especialmente quando as saídas do modelo variam ligeiramente devido à `temperature` ou à interpretação do `Prompt`.
+
+
+#### <font color="cyan">Criando um arquivo `task_manager.py`</font>
+Depois de definir `execute()` e a lógica interna `agent.py`, agora a conectamos à configuração do servidor compatível com `ADK` usando `task_manager.py`.
+
+```python
+from .agent import execute
+
+async def run(payload):
+    return await execute(payload)
+```
+Este arquivo atua como um wrapper fino em torno da função `execute()` definida anteriormente. Ele torna o método `run()` disponível para módulos externos, especialmente o script do servidor em `__main__.py`.
 
 
 
+#### <font color="cyan">Criando um arquivo `__main__.py`</font>
+O arquivo `__main__.py` inicia um servidor `FastAPI` na porta `8003`, atendendo o agente no ponto de extremidade `/run`.
+
+```python
+from common.a2a_server import create_app
+from .task_manager import run
+
+app = create_app(agent=type("Agent", (), {"execute": run}))
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, port=8003)
+```
+Aqui está o que está acontecendo:
+
+* O `create_app()` (de `common/a2a_server.py`) envolve nosso agente em uma interface `FastAPI` padrão compatível com `A2A`.
+
+* Construímos dinamicamente um objeto com o método `execute()` para que o `ADK` possa invocar `run()` corretamente.
+
+* Essa separação nos permite manter interfaces de API sem estado enquanto reutilizamos a lógica do agente principal.
 
 
-#### <font color="cyan">Criando um arquivo task_manager.py</font>
+#### <font color="cyan">Criando um arquivo `.well-known/agent.json`</font>
+Usamos esse arquivo `JSON` para descrever a identidade e a finalidade do agente, de acordo com o protocolo `A2A` (Agent-to-Agent).
 
+```json
+{
+    "name": "activity_agent",
+    "description": "Agente que fornece detalhes de atividades."
+  }
+```
 
+`Observação:`
 
+Embora o arquivo `.well-known/agent.json` não seja usado diretamente por nossos agentes neste projeto, ele adere à especificação `A2A` e é importante para descoberta, introspecção e compatibilidade futura com orquestradores como `LangGraph`, `CrewAI` ou o registro de agentes do `Google`.
 
-
-#### <font color="cyan">Criando um arquivo __main__.py</font>
-
-
-
-
-#### <font color="cyan">Criando um arquivo .well-known/agent.json</font>
+<font color="gree">Uma lógica semelhante é usada para `flight_agent` e `stay_agent` também.</font>
 
 
 
 ### <font color="blue">``Etapa 4:`` Coordenação com o host_agent</font>
+
+O `host_agent` atua como um planejador central para a demonstração. O `host_agent` exemplifica o padrão de controlador em sistemas multiagentes. Ele separa a tomada de decisão da execução, permitindo que cada agente a jusante (`downstream`) se concentre em seu nicho, centralizando a lógica de coordenação. Isso não apenas simplifica os testes e o escalonamento, como também espelha a arquitetura de microsserviços do mundo real em sistemas distribuídos.
+
+Ele envia o mesmo `payload` para todos os três agentes usando suas `/run` APIs expostas e mescla os resultados. Vamos adicionar os seguintes arquivos à pasta `host_agent`.
+
+#### <font color="cyan">Criando um arquivo `agent.py`</font>
+Vamos começar com importações básicas.
+
+```python
+from google.adk.agents import Agent
+from google.adk.models.lite_llm import LiteLlm
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+```
+
+Este bloco de importação traz todos os blocos de construção principais necessários para definir e executar um agente baseado em `LLM` usando o `Google ADK`: class `Agent`, `wrapper LLM` leve, `Runner` para manipulação de execução e gerenciamento de sessão na memória.
+
+```python
+host_agent = Agent(
+    name="host_agent",
+    model=LiteLlm("openai/gpt-4o"),
+    description="Coordena a viagem de planejamento de viagem chamando agentes de voo, hospedagem e atividades.",
+    instruction="Você é o agente host responsável por orquestrar tarefas de planejamento de viagem. "
+                "Você chama agentes externos para reunir voos, hospedagens e atividades, então retorna um resultado final."
+)
+session_service = InMemorySessionService()
+runner = Runner(
+    agent=host_agent,
+    app_name="host_app",
+    session_service=session_service
+)
+USER_ID = "user_host"
+SESSION_ID = "session_host"
+```
+O código acima define um `agente ADK` de nível superior responsável por coordenar todo o plano de viagem. Embora não invoquemos subagentes do LLM nesta implementação, o prompt do sistema configura a função para uma extensão futura em que o LLM poderia potencialmente lidar com o uso de ferramentas (`tools`) e o meta-raciocínio (`meta-reasoning`).
+
+```python
+async def execute(request):
+    # Ensure session exists
+    session_service.create_session(
+        app_name="host_app",
+        user_id=USER_ID,
+        session_id=SESSION_ID
+    )
+    prompt = (
+        f"Planeje uma viagem para {request['destination']} de {request['start_date']} até {request['end_date']} "
+        f"dentro de um orçamento total de {request['budget']}. Chame os agentes de voos, hospedagens e atividades para obter resultados."
+    )
+    message = types.Content(role="user", parts=[types.Part(text=prompt)])
+    async for event in runner.run_async(user_id=USER_ID, session_id=SESSION_ID, new_message=message):
+        if event.is_final_response():
+            return {"summary": event.content.parts[0].text}
+```
+Esta função `execute()` serve como o principal ponto de entrada para o `LLM do agente host`. Ela:
+
+* Inicializa uma sessão (para suporte de `memória`, se necessário)
+
+* Constrói dinamicamente um prompt de usuário
+
+* Envia para o modelo usando o método `runner.run_async()` do `ADK`
+
+* Por fim, aguarda e extrai a resposta final
+
+
+#### <font color="cyan">Criando um arquivo `task_manager.py`</font>
+O gerenciador de tarefas executa a lógica de orquestração chamando agentes remotos e gerenciando todo o fluxo de trabalho de planejamento de viagens. Para sua implementação prática, definimos as `URLs` de serviço para cada agente filho. Essas endpoints estão em conformidade com o protocolo `A2A` /run e esperam um esquema JSON compartilhado `TravelRequest`.
+
+```python
+from common.a2a_client import call_agent
+
+FLIGHT_URL = "http://localhost:8001/run"
+STAY_URL = "http://localhost:8002/run"
+ACTIVITIES_URL = "http://localhost:8003/run"
+```
+
+Agora, definimos o `payload`:
+```python
+async def run(payload):
+    # Imprima o que o agente host está enviando:
+    print("Incoming payload:", payload)
+    flights = await call_agent(FLIGHT_URL, payload)
+    stay = await call_agent(STAY_URL, payload)
+    activities = await call_agent(ACTIVITIES_URL, payload)
+    # Log outputs
+    print("flights:", flights)
+    print("stay:", stay)
+    print("activities:", activities)
+    # Certifique-se de que todos são dicionários antes de acessar:
+    flights = flights if isinstance(flights, dict) else {}
+    stay = stay if isinstance(stay, dict) else {}
+    activities = activities if isinstance(activities, dict) else {}
+    return {
+        "flights": flights.get("flights", "Nenhum voo retornado."),
+        "stay": stay.get("stays", "Nenhuma opção de hospedagem retornada."),
+        "activities": activities.get("activities", "Nenhuma atividade encontrada.")
+    }
+```
+Esta função usa a função `call_agent()` auxiliar para despachar o payload para cada serviço downstream e registra entradas e saídas para visibilidade durante o desenvolvimento. Este arquivo é essencialmente onde reside a verdadeira lógica de orquestração.
+
+
+#### <font color="cyan">Criando um arquivo `__main__.py`</font>
+
+
+
+#### <font color="cyan">Criando um arquivo `.well-known/agent.json`</font>
+
+
+
+### <font color="blue">``Etapa 5:`` Construindo a IU com Streamlit</font>
+
+
+
 
 
 
