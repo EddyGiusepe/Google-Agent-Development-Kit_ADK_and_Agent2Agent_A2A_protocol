@@ -1,3 +1,12 @@
+#! /usr/bin/env python3
+"""
+Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
+
+Script agent.py
+===============
+Este script define o agente de atividades. Ele cria um agente que sugere 
+atividades interessantes para o usuário em um destino.
+"""
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import Runner
@@ -8,11 +17,11 @@ import json
 activities_agent = Agent(
     name="activities_agent",
     model=LiteLlm("openai/gpt-4o"),
-    description="Suggests interesting activities for the user at a destination.",
+    description="Sugere atividades interessantes para o usuário em um destino.",
     instruction=(
-        "Given a destination, dates, and budget, suggest 2-3 engaging tourist or cultural activities. "
-        "For each activity, provide name, a short description, price estimate, and duration in hours. "
-        "Respond in plain English (not JSON). Keep it concise and well-formatted."
+        "Dado um destino, datas e orçamento, sugerir 2-3 atividades turísticas ou culturais. "
+        "Para cada atividade, fornecer nome, descrição curta, estimativa de preço e duração em horas. "
+        "Responda em português brasileiro simples (não JSON). Mantenha-o conciso e bem formatado."
     )
 )
 
@@ -27,16 +36,16 @@ USER_ID = "user_activities"
 SESSION_ID = "session_activities"
 
 async def execute(request):
-    session_service.create_session(
+    await session_service.create_session(
         app_name="activities_app",
         user_id=USER_ID,
         session_id=SESSION_ID
     )
 
     prompt = (
-        f"User is flying to {request['destination']} from {request['start_date']} to {request['end_date']}, "
-        f"with a budget of {request['budget']}. Suggest 2-3 activities, each with name, description, price estimate, and duration. "
-        f"Respond in JSON format using the key 'activities' with a list of activity objects."
+        f"O usuário está voando para {request['destination']} de {request['start_date']} até {request['end_date']}, "
+        f"com um orçamento de {request['budget']}. Sugeira 2-3 atividades, cada uma com nome, descrição concisa, estimativa de preço e duração. "
+        f"Responda em formato JSON usando a chave 'activities' com uma lista de objetos de atividade."
     )
 
     message = types.Content(role="user", parts=[types.Part(text=prompt)])
@@ -49,10 +58,10 @@ async def execute(request):
                 if "activities" in parsed and isinstance(parsed["activities"], list):
                     return {"activities": parsed["activities"]}
                 else:
-                    print("❌ 'activities' key missing or not a list in response JSON")
+                    print("❌ A chave 'activities' está ausente ou não é uma lista no JSON da resposta")
                     return {"activities": response_text}  # fallback to raw text
             except json.JSONDecodeError as e:
-                print("❌ JSON parsing failed:", e)
-                print("Response content:", response_text)
+                print("❌ Falha ao analisar o JSON:", e)
+                print("Conteúdo da resposta:", response_text)
                 return {"activities": response_text}  # fallback to raw text
             
