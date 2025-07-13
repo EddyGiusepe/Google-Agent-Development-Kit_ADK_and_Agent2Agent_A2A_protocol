@@ -497,6 +497,76 @@ Embora opcional, é uma ótima prática incluir isso em todos os diretórios de 
 
 
 ### <font color="blue">``Etapa 5:`` Construindo a IU com Streamlit</font>
+Por fim, vamos criar um aplicativo simples onde os usuários podem inserir suas preferências e receber um itinerário estruturado. Comece criando um arquivo `travel_ui.py` no diretório raiz e adicione o seguinte código a ele.
+
+```python
+import streamlit as st
+import requests
+```
+Importamos bibliotecas básicas como `Streamlit` e `requests` para suporte à UI.
+
+```python
+st.set_page_config(page_title="Planejador de viagens com tecnologia ADK", page_icon="✈️")
+st.title("🌍 Planejador de viagens com tecnologia ADK")
+origin = st.text_input("De onde você está voando?", placeholder="e.g., New York")
+destination = st.text_input("Para onde você está indo?", placeholder="e.g., Paris")
+start_date = st.date_input("Data de partida")
+end_date = st.date_input("Data de chegada")
+budget = st.number_input("Orçamento (em USD)", min_value=100, step=50)
+if st.button("Planejar minha viagem ✨"):
+    if not all([origin, destination, start_date, end_date, budget]):
+        st.warning("Por favor, preencha todos os detalhes.")
+    else:
+        payload = {
+            "origin": origin,
+            "destination": destination,
+            "start_date": str(start_date),
+            "end_date": str(end_date),
+            "budget": budget
+        }
+        response = requests.post("http://localhost:8000/run", json=payload)
+        if response.ok:
+            data = response.json()
+            st.subheader("✈️ Voos")
+            st.markdown(data["flights"])
+            st.subheader("🏨 Hospedagens")
+            st.markdown(data["stay"])
+            st.subheader("🗺️ Atividades")
+            st.markdown(data["activities"])
+        else:
+            st.error("Falha ao buscar o plano de viagem. Por favor, tente novamente.")
+```
+O aplicativo `Streamlit` oferece uma interface de usuário intuitiva para interagir com o `planejador de viagens` multiagente desenvolvido com o `ADK`. Aqui estão alguns pontos que abordamos no código acima.
+
+* Ele usa `text_input`, `date_input`, e `number_input` para coletar origem, destino, datas e orçamento.
+
+* Ao clicar em `“Planejar minha viagem”`, ele valida a entrada para garantir que nenhum campo fique em branco.
+
+* Se válido, ele constrói um `payload` JSON e envia uma solicitação POST para o `host_agent` at `http://localhost:8000/run`.
+
+* O `host_agent` invoca todos os agentes filhos (`flight`, `stay`, `ativity`), agrega suas respostas e retorna um plano de viagem unificado.
+
+* A resposta é analisada e exibida usando o método `st.markdown()` sob cabeçalhos separados para voos (`flights`), estadias (`stay`) e atividades (`activities`).
+
+* Se o backend falhar, uma mensagem de erro de fallback será exibida usando `st.error()`.
+
+Agora, execute o seguinte comando no seu terminal local:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
