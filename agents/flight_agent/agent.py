@@ -1,3 +1,11 @@
+#! /usr/bin/env python3
+"""
+Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
+
+Script agent.py
+===============
+Este arquivo define o agente de voos.
+"""
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import Runner
@@ -7,29 +15,26 @@ from google.genai import types
 flight_agent = Agent(
     name="flight_agent",
     model=LiteLlm("openai/gpt-4o"),
-    description="Suggests flight options for a destination.",
+    description="Sugerir opções de voos para um destino.",
     instruction=(
-        "Given a destination, travel dates, and budget, suggest 1-2 realistic flight options. "
-        "Include airline name, price, and departure time. Ensure flights fit within the budget."
-    )
+        "Dado um destino, datas de viagem e orçamento, sugerir 1-2 opções de voos realistas. "
+        "Incluir nome da companhia aérea, preço e horário de partida. Garantir que os voos sejam compatíveis com o orçamento."
+    ),
 )
 
 session_service = InMemorySessionService()
 runner = Runner(
-    agent=flight_agent,
-    app_name="flight_app",
-    session_service=session_service
+    agent=flight_agent, app_name="flight_app", session_service=session_service
 )
 
 USER_ID = "user_1"
 SESSION_ID = "session_001"
 
+
 async def execute(request):
-    # 🔧 Ensure session is created before running the agent
+    # 🔧 Garantir que a sessão seja criada antes de executar o agente:
     await session_service.create_session(
-        app_name="flight_app",
-        user_id=USER_ID,
-        session_id=SESSION_ID
+        app_name="flight_app", user_id=USER_ID, session_id=SESSION_ID
     )
 
     # prompt = (
@@ -37,16 +42,16 @@ async def execute(request):
     #     f"with a budget of {request['budget']}. Suggest flight options."
     # )
     prompt = (
-    f"User is flying from {request['origin']} to {request['destination']} "
-    f"from {request['start_date']} to {request['end_date']}, with a budget of {request['budget']}. "
-    "Suggest 2-3 realistic flight options. For each option, include airline, departure time, return time, "
-    "price, and mention if it's direct or has layovers."
+        f"O usuário está voando de {request['origin']} para {request['destination']} "
+        f"de {request['start_date']} a {request['end_date']}, com um orçamento de {request['budget']}. "
+        "Sugerir 2-3 opções de voos realistas. Para cada opção, incluir nome da companhia aérea, horário de partida, horário de chegada, "
+        "preço e mencionar se é direto ou tem escalas."
     )
-
 
     message = types.Content(role="user", parts=[types.Part(text=prompt)])
 
-    async for event in runner.run_async(user_id=USER_ID, session_id=SESSION_ID, new_message=message):
+    async for event in runner.run_async(
+        user_id=USER_ID, session_id=SESSION_ID, new_message=message
+    ):
         if event.is_final_response():
             return {"flights": event.content.parts[0].text}
-        
