@@ -4,9 +4,9 @@ Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
 
 Script schema.py
 ================
-Definimos um esquema TravelRequest usando o Pydantic. Isso 
-garante que todos os agentes concordem com a estrutura das 
-solicitações recebidas, o que inclui o destino, as datas da 
+Definimos um esquema TravelRequest usando o Pydantic. Isso
+garante que todos os agentes concordem com a estrutura das
+solicitações recebidas, o que inclui o destino, as datas da
 viagem e o orçamento do usuário.
 
 Esta class ajuda em:
@@ -17,9 +17,9 @@ Esta class ajuda em:
 """
 from pydantic import BaseModel
 
+
 class TravelRequest(BaseModel):
     destination: str
     start_date: str
     end_date: str
     budget: float
-    
