@@ -1,3 +1,11 @@
+#! /usr/bin/env python3
+"""
+Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
+
+Script agent.py
+===============
+Este arquivo define o agente de hospedagem.
+"""
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import Runner
@@ -7,36 +15,33 @@ from google.genai import types
 host_agent = Agent(
     name="host_agent",
     model=LiteLlm("openai/gpt-4o"),
-    description="Coordinates travel planning by calling flight, stay, and activity agents.",
-    instruction="You are the host agent responsible for orchestrating trip planning tasks. "
-                "You call external agents to gather flights, stays, and activities, then return a final result."
+    description="Coordena o planejamento de viagens chamando para agentes de voos (flight), estadia (stay) e atividades (activity).",
+    instruction="Você é o agente de hospedagem responsável por orquestrar as tarefas de planejamento de viagens. "
+    "Você chama agentes externos para coletar voos, estadias e atividades, e retorna um resultado final.",
 )
 
 session_service = InMemorySessionService()
-runner = Runner(
-    agent=host_agent,
-    app_name="host_app",
-    session_service=session_service
-)
+runner = Runner(agent=host_agent, app_name="host_app", session_service=session_service)
 
 USER_ID = "user_host"
 SESSION_ID = "session_host"
 
+
 async def execute(request):
-    # Ensure session exists
+    # 🔧 Garantir que a sessão exista:
     session_service.create_session(
-        app_name="host_app",
-        user_id=USER_ID,
-        session_id=SESSION_ID
+        app_name="host_app", user_id=USER_ID, session_id=SESSION_ID
     )
 
     prompt = (
-        f"Plan a trip to {request['destination']} from {request['start_date']} to {request['end_date']} "
-        f"within a total budget of {request['budget']}. Call the flights, stays, and activities agents for results."
+        f"Planejar uma viagem para {request['destination']} de {request['start_date']} a {request['end_date']} "
+        f"dentro de um orçamento total de {request['budget']}. Chamar os agentes de voos, estadias e atividades para obter resultados."
     )
 
     message = types.Content(role="user", parts=[types.Part(text=prompt)])
 
-    async for event in runner.run_async(user_id=USER_ID, session_id=SESSION_ID, new_message=message):
+    async for event in runner.run_async(
+        user_id=USER_ID, session_id=SESSION_ID, new_message=message
+    ):
         if event.is_final_response():
             return {"summary": event.content.parts[0].text}
