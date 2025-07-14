@@ -44,7 +44,7 @@ O `ADK` oferece a flexibilidade do `Python` com estruturas integradas para geren
 
 O protocolo `Agent2Agent` (A2A) é um padrão aberto e independente de fornecedores, desenvolvido pelo `Google` para permitir fácil comunicação e colaboração entre agentes de IA em diversas plataformas e frameworks.
 
-Os agentes do `ADK` expõem um endpoint HTTP padrão `/run` e metadados por meio de `.well-known/agent.json`. Isso permite a descoberta de agentes e a comunicação fácil entre eles (ou até mesmo orquestradores externos como [LangGraph](https://www.datacamp.com/tutorial/langgraph-tutorial) ou [CrewAI](https://www.datacamp.com/tutorial/crew-ai)).
+Os agentes do `ADK` expõem uma endpoint HTTP padrão `/run` e metadados por meio de `.well-known/agent.json`. Isso permite a descoberta de agentes e a comunicação fácil entre eles (ou até mesmo orquestradores externos como [LangGraph](https://www.datacamp.com/tutorial/langgraph-tutorial) ou [CrewAI](https://www.datacamp.com/tutorial/crew-ai)).
 
 Embora opcional, adicionar o arquivo de metadados A2A torna seus agentes interoperáveis ​​com o ecossistema mais amplo de ferramentas de agente e orquestradores.
 
@@ -552,8 +552,14 @@ O aplicativo `Streamlit` oferece uma interface de usuário intuitiva para intera
 
 Agora, execute o seguinte comando no seu terminal local:
 
-
-
+```python
+uvicorn agents.host_agent.__main__:app --port 8000 &
+uvicorn agents.flight_agent.__main__:app --port 8001 &
+uvicorn agents.stay_agent.__main__:app --port 8002 &      
+uvicorn agents.activities_agent.__main__:app --port 8003 &
+streamlit run streamlit.py
+```
+Quando um usuário clica em `“Planejar minha viagem”`, o agente host assume, ativa os agentes e exibe os resultados na IU:
 
 
 

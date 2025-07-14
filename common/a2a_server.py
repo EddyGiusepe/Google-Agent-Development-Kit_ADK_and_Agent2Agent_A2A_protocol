@@ -23,7 +23,9 @@ mensagens interagentes simples e estruturadas.
 from fastapi import FastAPI
 import uvicorn
 def create_app(agent):
-    app = FastAPI()
+    app = FastAPI(title='🤗 Agente que sugere atividades interessantes ao usuário🤗',
+              version='1.0.0',
+              description="""Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro""")
     @app.post("/run")
     async def run(payload: dict):
         return await agent.execute(payload)
